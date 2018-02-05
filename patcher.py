@@ -702,6 +702,10 @@ try:
             xsver = str(majver) + str(minver)
         else:
             xsver = str(majver) + str(minver) + str(subver)
+
+    if xsver == "711":
+        xsver = "71ECU1"
+
     if debug == True:
         print("xsver: " + xsver)
 finally:
