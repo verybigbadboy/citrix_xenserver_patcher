@@ -96,6 +96,7 @@ cpass = ''
 ########################################
 # Setup empty List for later
 L = []
+alternative_updates_xml = None
 # Specify empty excludes file -- when specified, this is a list of patches to IGNORE [opt: -e FILENAME ]
 exclude_file = False
 exclusions = False
@@ -131,10 +132,11 @@ citrix_authentication_url = 'https://identity.citrix.com/Utility/STS/Sign-In'
 #######################################
 ## Define usage text
 def usage(exval=1):
-    print("Usage: %s [-p] [-e /path/to/exclude_file] [-E] [-a] [-r] [-l] [-U <username>] [-P <password>] [-D] [-C] [-v] [-q]" % sys.argv[0])
+    print("Usage: %s [-p] [-e /path/to/exclude_file] [-u /path/to/updates.xml] [-E] [-a] [-r] [-l] [-U <username>] [-P <password>] [-D] [-C] [-v] [-q]" % sys.argv[0])
     print("")
     print("-p                          => POOL MODE: Apply Patches to the whole Pool. It must be done on the Pool Master.")
     print("-e /path/to/exclude_file    => Allows user to define a Python List of Patches NOT to install.")
+    print("-u /path/to/updates.xml     => Allows user to define a saved copy of updates.xml file.")
     print("-E                          => *Disable* the loading of auto-exclusions list from Github")
     print("-a                          => Enables auto-apply of patches - will NOT reboot host without below option.")
     print("-r                          => Enables automatic reboot of Host on completion of patching without prompts.")
@@ -151,7 +153,7 @@ def usage(exval=1):
 
 # Parse Args:
 try:
-    myopts, args = getopt.getopt(sys.argv[1:],"vhpe:EalrUPDCq")
+    myopts, args = getopt.getopt(sys.argv[1:],"vhpe:u:EalrUPDCq")
 except getopt.GetoptError:
     usage()
 
@@ -183,6 +185,12 @@ for o, a in myopts:
         # Check that the Python we just ran actually contains some valid exclusions!
         if exclusions == False:
             print("No exclusions found in the loaded exceptions file...")
+            sys.exit(1)
+    elif o == '-u':
+        alternative_updates_xml = str(a)
+        if not os.path.exists(alternative_updates_xml):
+            # If it doesn't exist, Error and quit.
+            print("Failed to locate requested updates.xml file: " + alternative_updates_xml)
             sys.exit(1)
     elif o == '-p':
         # With 'pool-mode' enabled, check if we're the Master node.
@@ -765,22 +773,26 @@ else:
     pool_apply_cmd="patch-pool-apply"
     pool_clean="patch-pool-clean"
 
-### Start XML Grab + Parse
-try:
-    # Get XML
-    if debug == True:
-        print("Downloading patch list XML")
-    downloaded_data = urlopen(patchxmlurl)
-except Exception, err:
-    # Handle Errors
-    print("\nFailed to read Citrix Patch List from: " + patchxmlurl)
-    print("Check the URL is available, and connectivity is OK.")
-    print("")
-    print("Error: " + str(err))
-    sys.exit(1)
 
-# Set "data" to readable/printable page content.
-data = downloaded_data.read()
+if alternative_updates_xml == None:
+    ### Start XML Grab + Parse
+    try:
+        # Get XML
+        if debug == True:
+            print("Downloading patch list XML")
+        downloaded_data = urlopen(patchxmlurl)
+    except Exception, err:
+        # Handle Errors
+        print("\nFailed to read Citrix Patch List from: " + patchxmlurl)
+        print("Check the URL is available, and connectivity is OK.")
+        print("")
+        print("Error: " + str(err))
+        sys.exit(1)
+
+    data = downloaded_data.read()
+else:
+    with open(alternative_updates_xml, 'r') as f:
+        data = f.read()
 
 #######################
 # DEBUG - Show output #
